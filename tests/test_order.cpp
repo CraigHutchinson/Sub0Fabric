@@ -155,6 +155,18 @@ int main()
         CHECK(!Cursor::fromJson(R"({"format":"cursor-9","positions":[]})").has_value());
         CHECK(!Cursor::fromJson("nope").has_value());
         CHECK(Cursor::fromJson(R"({"format":"cursor-1","positions":[]})")->empty());
+        CHECK_EQ(Cursor{}.toJson(), std::string{R"({"format":"cursor-1","positions":[]})"});
+    }
+
+    // A position above INT64_MAX is written and read as the unsigned number it is (never through a signed cast).
+    {
+        Cursor c;
+        c.set({"p", "a"}, UINT64_MAX);
+        c.set({"p", "b"}, 7);
+        const std::string text = c.toJson();
+        CHECK_EQ(text, std::string{R"({"format":"cursor-1","positions":[{"namespace":"p","writer":"a","position":18446744073709551615},{"namespace":"p","writer":"b","position":7}]})"});
+        auto back = Cursor::fromJson(text);
+        CHECK(back.has_value() && *back == c);
     }
 
     // Sparse index: one entry per `every` records; lookup gives the last entry at or before the position.

@@ -27,18 +27,12 @@ void Cursor::advance(const Record& r)
 
 std::string Cursor::toJson() const
 {
-    // The array is assembled by hand around one small object per writer (the writer helper has no arrays): positions are few and the text is small.
-    std::string text = R"({"format":"cursor-1","positions":[)";
-    bool first = true;
-    for (const auto& [writer, position] : positions_) {
-        json::Writer m;
-        m.beginObject().kv("namespace", writer.ns).kv("writer", writer.writer).kv("position", static_cast<std::int64_t>(position)).endObject();
-        if (!first) text += ',';
-        first = false;
-        text.append(m.view());
-    }
-    text += "]}";
-    return text;
+    json::Writer w;
+    w.beginObject().kv("format", "cursor-1").key("positions").beginArray();
+    for (const auto& [writer, position] : positions_)
+        w.beginObject().kv("namespace", writer.ns).kv("writer", writer.writer).kv("position", position).endObject();
+    w.endArray().endObject();
+    return std::string{w.view()};
 }
 
 std::expected<Cursor, std::string> Cursor::fromJson(std::string_view text)

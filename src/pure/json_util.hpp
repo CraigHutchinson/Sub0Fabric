@@ -21,13 +21,19 @@ public:
     Writer() : buffer_(256) {}
     Writer& beginObject() { sep(); buffer_.append('{'); first_[depth_++] = true; return *this; }
     Writer& endObject() { buffer_.append('}'); --depth_; return *this; }
+    /// Open an array; its elements are separated by the same automatic commas as an object's members.
+    Writer& beginArray() { sep(); buffer_.append('['); first_[depth_++] = true; return *this; }
+    Writer& endArray() { buffer_.append(']'); --depth_; return *this; }
     Writer& key(std::string_view k) { sep(); buffer_.escape_and_append_with_quotes(k); buffer_.append(':'); pendingKey_ = true; return *this; }
     Writer& str(std::string_view v) { sep(); buffer_.escape_and_append_with_quotes(v); return *this; }
     Writer& num(std::int64_t v) { sep(); buffer_.append(v); return *this; }
+    /// An unsigned number: a `seq` above INT64_MAX must never pass through a signed cast.
+    Writer& num(std::uint64_t v) { sep(); buffer_.append(v); return *this; }
     Writer& num(double v) { sep(); buffer_.append(v); return *this; }
     Writer& raw(std::string_view v) { sep(); buffer_.append_raw(v); return *this; }
     Writer& kv(std::string_view k, std::string_view v) { return key(k).str(v); }
     Writer& kv(std::string_view k, std::int64_t v) { return key(k).num(v); }
+    Writer& kv(std::string_view k, std::uint64_t v) { return key(k).num(v); }
     Writer& kvRaw(std::string_view k, std::string_view v) { return key(k).raw(v); }
 
     /// The text so far (valid until the next write).
@@ -41,7 +47,7 @@ private:
         if (first_[depth_ - 1]) first_[depth_ - 1] = false; else buffer_.append(',');
     }
     simdjson::builder::string_builder buffer_;
-    std::array<bool, 8> first_{};   ///< per open object: no member written yet (objects nest at most 2 deep here)
+    std::array<bool, 8> first_{};   ///< per open object or array: nothing written yet. Containers nest at most 8 deep, objects and arrays together (the protocol's responses use 4)
     std::size_t depth_ = 0;
     bool pendingKey_ = false;
 };
