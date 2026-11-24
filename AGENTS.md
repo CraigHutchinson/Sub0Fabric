@@ -29,7 +29,7 @@ budgets); this repository links to it rather than copying it.
   journal-1 facade) over Sub0Platform. May include pure; pure never includes io (`cmake/CheckLayers.cmake`, test `layering`).
 * `tests/`: one executable per area; the list, with area and tier, is `cmake/Tests.cmake`. `tests/fixtures/`: data by kind, with origin in
   `tests/fixtures/README.md`. The test helper is Sub0Platform's `sub0platform/testing/check.hpp`.
-* `bench/`: the section 5 budgets as `Sub0Fabric_Bench` (sub0perf, [Sub0Math docs/PERF_LOOP.md](https://github.com/CraigHutchinson/Sub0Math)); `perf/metrics.json`
+* `bench/`: the section 5 budgets as `Sub0Fabric_Bench` (sub0perf, [Sub0Perf docs/PERF_LOOP.md](https://github.com/CraigHutchinson/Sub0Perf)); `perf/metrics.json`
   the deterministic metrics (judged in every tier); `perf/baselines/<host>.json` recorded timings of one machine.
 * `cmake/`: dependencies (CPM), layers, test tiers, structure checks.
 
@@ -45,7 +45,7 @@ ctest --preset timing     # the local timing run (mains power, quiet machine); n
 
 On Windows the toolchain is MinGW-w64 UCRT (WinLibs GCC) with Ninja. Dependencies come through CPM into one global cache outside every repository
 (`CPM_SOURCE_CACHE=%USERPROFILE%\.cache\cpm`; never a cache under `build/`), and on the owner's machine the `CPM_<Name>_SOURCE` user-level variables
-point at local checkouts (`CPM_Sub0Math_SOURCE`, and `CPM_Sub0Platform_SOURCE` where set). Activate the pre-push gate once per clone:
+point at local checkouts (`CPM_Sub0Perf_SOURCE`, and `CPM_Sub0Platform_SOURCE` where set). Activate the pre-push gate once per clone:
 `git config core.hooksPath .githooks`, and prove it with `python ../CraigHutchinson.github/tools/ci/hook_check.py --repo .`.
 
 ## Code style
@@ -72,7 +72,7 @@ This list is complete. Everything an agent or a person needs to work here is in 
   **performance at the core** (the review's section 5 budgets are benchmarks from F0).
 * **Report faithfully**: regressions named, skipped steps said, numbers with their noise.
 * **CI**: smoke on every push and pull request; the full tier on `v*` tags, `ci:full`, dispatch and a change-gated weekly run. Never dispatch the
-  full tier after a routine push. **Timing is measured locally only; deterministic metrics gate in every tier**; the improve loop is Sub0Math
+  full tier after a routine push. **Timing is measured locally only; deterministic metrics gate in every tier**; the improve loop is Sub0Perf
   `docs/PERF_LOOP.md`. The pre-push perf gate is installed only from the main checkout (`SUB0FABRIC_PERF_GATE`).
 * **Sub0Squad, Sub0Canvas and Sub0Log are not edited from here.** Their adoption of Fabric (W5, W6) is briefs in their own repositories.
 * **The name**: **Sub0Fabric** in prose, docs, commit messages and URLs (`https://github.com/CraigHutchinson/Sub0Fabric.git`); code and build
