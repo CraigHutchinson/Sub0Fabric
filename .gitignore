@@ -1,0 +1,6 @@
+build/
+out/
+build-local-*/
+test-tmp/
+.ci/last-*.json
+.claude/worktrees/

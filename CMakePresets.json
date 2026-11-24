@@ -1,0 +1,40 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default (Release)",
+      "binaryDir": "${sourceDir}/build/default",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "default", "configurePreset": "default" }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "quick",
+      "displayName": "Smoke tier: everything except tests labelled full or timing",
+      "inherits": "default",
+      "filter": { "exclude": { "label": "full|timing" } }
+    },
+    {
+      "name": "full",
+      "displayName": "Full tier: every test, smoke and full, never the timing run",
+      "inherits": "default",
+      "filter": { "exclude": { "label": "timing" } }
+    },
+    {
+      "name": "timing",
+      "displayName": "Timing: the local benchmark run (Sub0Fabric_Bench_check); never in CI, mains power, quiet machine",
+      "inherits": "default",
+      "filter": { "include": { "label": "timing" } }
+    }
+  ]
+}
