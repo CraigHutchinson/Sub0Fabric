@@ -33,3 +33,6 @@ else()
   set(GIT_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/git-semver.sh")
 endif()
 add_subdirectory(${Version.cmake_SOURCE_DIR} ${CMAKE_BINARY_DIR}/_deps/version.cmake-build)
+# Only Version.cmake runs through the wrapper: a later fetch (Sub0Perf, in the benchmark block) must use plain git, because cmd.exe eats the `^` of
+# `git rev-parse HEAD^0` and a fresh clone fails on Windows.
+unset(GIT_EXECUTABLE)
