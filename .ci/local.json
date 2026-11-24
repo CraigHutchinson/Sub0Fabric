@@ -65,7 +65,7 @@
           "timing": true,
           "perf_outcome": "{builddir}/perf-outcome.json",
           "commands": [
-            "cmake --preset default -B {builddir} -G Ninja -DCMAKE_C_COMPILER={cc} -DCMAKE_CXX_COMPILER={cxx} -DSUB0MATH_PERF_GIT_HOOKS=ON",
+            "cmake --preset default -B {builddir} -G Ninja -DCMAKE_C_COMPILER={cc} -DCMAKE_CXX_COMPILER={cxx} -DSUB0PERF_GIT_HOOKS=ON",
             "cmake --build {builddir} -j {jobs}",
             [
               "{python}",
@@ -73,7 +73,7 @@
               "import subprocess,sys;sys.exit(subprocess.run(sys.argv[2:],stdout=open(sys.argv[1],'w')).returncode)",
               "{builddir}/perf-outcome.json",
               "{python}",
-              "{sub0math_tooling}/bench_check.py",
+              "{sub0perf_tooling}/bench_check.py",
               "gate",
               "--level",
               "full",
