@@ -20,7 +20,7 @@ Status: **F0, the log core** (pure layer and directory store). The protocol and 
 ```cpp
 #include "sub0fabric/io/store.hpp"
 
-auto writer = sub0fabric::io::StoreWriter::open(root, {"project", "w-000001"}, {.shape = "canvas-event-1"});
+auto writer = sub0fabric::io::StoreWriter::open(root, {"project", "w-000001"});   // canvas-event-1, frames, one segment per writer
 sub0fabric::Record r;
 r.kind = "item.put@1"; r.lamport = 1; r.payload = R"({"key":"a"})";
 (void)writer->append(r);
@@ -28,7 +28,11 @@ r.kind = "item.put@1"; r.lamport = 1; r.payload = R"({"key":"a"})";
 auto reader = sub0fabric::io::StoreReader::open(root);
 sub0fabric::Cursor cursor;                       // empty: from the start
 auto stream = reader->since(cursor);             // merged in (lamport, writer) order, streaming
-for (sub0fabric::Record rec; stream->next(rec);) { /* ... */ cursor.advance(rec); }
+for (sub0fabric::Record rec; ;) {
+    auto got = (*stream)->next(rec);             // true: a record; false: the end; an error: damage, named
+    if (!got || !*got) break;
+    cursor.advance(rec);                         // then sub0fabric::io::saveCursor(file, cursor)
+}
 ```
 
 ## Build

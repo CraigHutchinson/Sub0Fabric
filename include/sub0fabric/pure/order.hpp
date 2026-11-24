@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <expected>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -59,7 +60,7 @@ class Merger final : public RecordSource
 public:
     Merger(std::vector<std::unique_ptr<RecordSource>> sources, const OrderPolicy& policy);
 
-    /// The next record in policy order; false at the end of every source; an error when a source reports one (the merge then stops).
+    /// The next record in policy order; false at the end of every source; an error when a source reports one: after every record that precedes the damage was handed out, and the merge then stops.
     [[nodiscard]] std::expected<bool, std::string> next(Record& out) override;
     /// How many records came out below the record before them from the same source.
     [[nodiscard]] std::uint64_t outOfOrder() const noexcept { return outOfOrder_; }
@@ -77,6 +78,7 @@ private:
     const OrderPolicy* policy_;
     std::vector<Head> heap_;
     bool primed_ = false;
+    std::optional<std::string> failure_;   ///< a source's error, reported after the last record that precedes it
     std::uint64_t outOfOrder_ = 0;
 };
 

@@ -92,6 +92,59 @@ is the open-for-append recovery and the index build. It reports `offset()` befor
   equal cursors give equal bytes; stored atomically by the io layer.
 * **`SparseIndex`**: the offset of every 64th record per segment; `since` seeks to the nearest entry and decodes at most 63 records it does not return.
 
-## The io layer
+## Directory store
 
-See the section "Directory store" below.
+```
+<root>/<ns>/<writer>/seg-000001.s0f, seg-000002.s0f, ...     Layout::perWriter (default): ns and writer percent-encoded, empty = "~"
+<root>/seg-000001.s0f                                          Layout::shared: the root is one stream, one process at a time
+<dir>/journal-000001.ndjson                                    the lines framing, in either place
+<dir>/.lock                                                    held by an open writer (WriterOptions::lock)
+```
+
+**Writer** (`StoreWriter`): one writer owns a stream, so append takes no lock between writers and is O(1): the record is encoded once into a reused buffer and
+written with one `AppendFile::append`. Durability is a policy (`perRecord`, `perBatch` default, `interval`); `appendBatch` is one write per segment and one
+flush, the unit later transports and the git-ref store commit by. Opening **recovers**: the active segment is scanned in chunks (frames: checksums only, no decode),
+a torn tail is truncated, an untouched torn header is rewritten (its `first` taken from the segment before it), and damage before the tail refuses the open
+(an append would bury it). The segment rolls at `maxSegmentBytes` (frames only; a lines file is one segment, as journal-1 is); the next header's `first` continues the
+count. A second writer on the same stream is refused by the lock, which is how "one writer per segment" is enforced rather than assumed.
+`Layout::shared` is the review's per-attempt/per-project option (D5, off by default): one stream in the root for one process at a time.
+
+**Reader** (`StoreReader`): `open` finds every stream (root, then `<ns>/<writer>`), reads each segment header, and scans each segment once, building its sparse
+index and count; `refresh` finds new segments and extends the scan from where it stopped (an unchanged file is not touched). `since(cursor)` builds one
+`StreamSource` per stream with unread records (the plan is copied, so it survives a refresh), seeks each to the nearest index entry at or before the cursor, and
+returns a `Merger`. Memory: one chunk (64 KiB) per stream and one head record per stream, however long the logs; records per read: those returned, plus at most
+`indexEvery - 1` skipped per stream (`ReadStats` counts them, `test_store` and the benchmarks check it as a fact). A stream that stops early is an error naming the file
+(a segment shorter than its scan), and damage found by the scan is reported by `streams()` and by the read when it reaches it, after the records before it.
+Streams with different order policies are an error until one is named (`orderOverride`); a `lines` stream's shape is found from its first line by `detectShape`.
+
+**Cursors** (`io/cursor_file.hpp`): `loadCursor`/`saveCursor`, atomic replace through Platform's `writeFileAtomic`. A reader advances its cursor only after it
+has handled records, so a crash repeats work and never loses it.
+
+**journal-1 facade** (`io/journal1.hpp`): Sub0Squad's `Journal` API over the same machinery (shared layout, lines framing, shape `journal-1`, no lock, as Squad's).
+
+### How journal-1 is preserved
+
+1. **The bytes**: `lines` framing with the `journal-1` shape writes exactly Squad's line. `tests/fixtures/journal-1/squad-written.ndjson` was written by Squad's own
+   `Journal`; `test_journal1` reads it, writes every record back to identical bytes (the `ts` doubles included: both sides use the same simdjson), and continues it.
+2. **The behaviour**: `test_journal1` runs Squad's `test_journal.cpp` with only the include and namespace changed: truncation at every byte (replay never fails and returns a
+   prefix; open cuts the tail; the next append continues the sequence), corruption in the middle is an error, with Squad's message text.
+3. **The rules**: no newline at the end is torn; a bad or wrong-`seq` last line is torn; the same before the end is corrupt; a missing journal replays empty. These are the scanner's
+   rules for the lines framing, so they hold for any shape written as lines.
+4. **Not preserved, deliberately**: `d` is kept without trailing whitespace; the facade keeps every record in memory, as Squad's does (the reader is the streaming way);
+   a lines record whose text holds a newline is refused instead of silently splitting (Squad never had such a body: its bodies are compact JSON).
+
+## Budgets (review section 5) and how F0 measures them
+
+`bench/` builds `Sub0Fabric_Bench` (sub0perf). Deterministic metrics in `perf/metrics.json` run in every tier; timing is local only (`ctest --preset timing`).
+
+| review budget | F0 evidence |
+|---|---|
+| append: O(1), no lock, durability a policy | allocations per append the same at 1e3 and 1e5 records (metric); bytes per record (metric); timing rows for append at each durability mode |
+| `since(cursor)`: O(records returned) via a sparse index, never a rescan | records skipped and bytes read for a tail read of a 1e5-record log (metrics: skipped below the stride, bytes at most a chunk); scan counters do not move on a second read; timing: tail read at 1e4 and 1e5 |
+| merge: streaming k-way, memory bounded in segments not records | live heap bytes of a 16-stream merge of 1e5 records equals that of 1e4 within a stride of headroom (metrics); timing: merge throughput |
+| parse: simdjson on-demand, one JSON library | decode allocations per record (metric); timing: decode MB/s for both shapes |
+| git-ref backend, live fan-out, projection, indexes per user | later waves (W4, W6) |
+
+## Open points
+
+See [BACKLOG.md](BACKLOG.md) and RESUME.md "Open questions for the owner".

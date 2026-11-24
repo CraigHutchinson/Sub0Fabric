@@ -1,0 +1,4 @@
+{"seq":1,"ts":1795511465.926692,"type":"job.created","d":{"id":"j-1","spec":{"name":"modulo","files":["a.cpp","b.cpp"]}}}
+{"seq":2,"ts":1795511465.9405975,"type":"job.state","d":{"id":"j-1","to":"running","note":"q\"uote\n and é"}}
+{"seq":3,"ts":1795511465.9406543,"type":"progress","d":{}}
+{"seq":4,"ts":1795511465.9406664,"type":"job.state","d":{"id":"j-1","to":"done","n":12345678901234,"f":1.5e-3}}

@@ -64,12 +64,17 @@ std::expected<bool, std::string> Merger::next(Record& out)
         }
         std::ranges::make_heap(heap_, cmp);
     }
+    if (failure_) return std::unexpected(*failure_);   // reported once the record before it has been handed out
     if (heap_.empty()) return false;
     std::ranges::pop_heap(heap_, cmp);
     Head& top = heap_.back();
     out = std::move(top.record);
     auto got = sources_[top.source]->next(top.record);
-    if (!got) return std::unexpected(got.error());
+    if (!got) {
+        failure_ = std::move(got.error());   // `out` is good and in order: deliver it, then fail; nothing after the damage is delivered
+        heap_.clear();
+        return true;
+    }
     if (*got) {
         if (policy_->less(top.record, out)) ++outOfOrder_;
         std::ranges::push_heap(heap_, cmp);

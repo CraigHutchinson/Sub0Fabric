@@ -54,7 +54,7 @@ foreach(layer ${SUB0FABRIC_LAYERS})
   set(lower sub0fabric_${layer})
 endforeach()
 target_link_libraries(sub0fabric_pure PRIVATE simdjson::simdjson version::version)
-target_link_libraries(sub0fabric_io INTERFACE Sub0Platform::sub0platform)   # becomes PUBLIC once the layer has sources
+target_link_libraries(sub0fabric_io PUBLIC Sub0Platform::sub0platform)
 
 if(SUB0FABRIC_BUILD_TESTING)
   enable_testing()
