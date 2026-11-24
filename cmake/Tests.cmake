@@ -8,4 +8,5 @@ sub0fabric_label_tests(AREA pure TIER smoke TARGETS test_version test_codec test
 sub0fabric_add_test(test_journal1 io)
 sub0fabric_label_tests(AREA io TIER smoke TARGETS test_journal1)
 sub0fabric_add_test(test_store io)
-sub0fabric_label_tests(AREA io TIER smoke TARGETS test_store)
+sub0fabric_add_test(test_protocol_store io)
+sub0fabric_label_tests(AREA io TIER smoke TARGETS test_store test_protocol_store)
