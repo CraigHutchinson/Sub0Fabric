@@ -65,28 +65,13 @@ if(SUB0FABRIC_BUILD_BENCHMARKS)
   endif()
   CPMAddPackage(NAME Sub0Perf
     GIT_REPOSITORY https://github.com/CraigHutchinson/Sub0Perf.git
-    GIT_TAG 3c74bce22e848d3e4e13dfcb5eb9c480703b7db8
+    GIT_TAG 10466f81d87d878fdaf6b6523760d3ae3f97ba09
     DOWNLOAD_ONLY YES)
-  # No benchmark run after every build (run the targets deliberately). The pre-push gate is on wherever this machine has a committed baseline
-  # (perf/baselines/<host>.json, the lower-case host name, or SUB0MATH_PERF_HOST / -DSUB0MATH_PERF_HOST for another name): the gate judges against that
-  # baseline, so with none there is nothing to gate and the build writes no configuration.
+  # No benchmark run after every build (run the targets deliberately). The pre-push gate follows Sub0Perf's default (SUB0MATH_PERF_GIT_HOOKS=AUTO): installed
+  # only from the main checkout, where this machine has a committed baseline (perf/baselines/<host>.json; SUB0MATH_PERF_HOST names another host), never on CI.
   set(SUB0MATH_PERF_ON_BUILD "OFF" CACHE STRING "")
-  if(NOT DEFINED SUB0MATH_PERF_HOST AND DEFINED ENV{SUB0MATH_PERF_HOST})
-    set(SUB0MATH_PERF_HOST "$ENV{SUB0MATH_PERF_HOST}" CACHE STRING "Baseline name in perf/baselines/")
-  endif()
-  if(DEFINED SUB0MATH_PERF_HOST)
-    set(_fabric_perf_host "${SUB0MATH_PERF_HOST}")
-  else()
-    cmake_host_system_information(RESULT _fabric_perf_host QUERY HOSTNAME)
-    string(TOLOWER "${_fabric_perf_host}" _fabric_perf_host)
-  endif()
-  # The gate is installed only from the main checkout (a linked git worktree has a .git file, not a directory, and shares the main checkout's hooks and
-  # sub0perf configuration: Sub0Perf issue, transferred from Sub0Math issue 5) and never when SUB0FABRIC_PERF_GATE is OFF.
   option(SUB0FABRIC_PERF_GATE "Install the pre-push performance gate where this machine has a committed baseline" ON)
-  if(SUB0FABRIC_PERF_GATE AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.git"
-     AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/perf/baselines/${_fabric_perf_host}.json")
-    set(SUB0MATH_PERF_GIT_HOOKS ON)
-  else()
+  if(NOT SUB0FABRIC_PERF_GATE)
     set(SUB0MATH_PERF_GIT_HOOKS OFF)
   endif()
   include("${Sub0Perf_SOURCE_DIR}/cmake/Sub0Perf.cmake")
