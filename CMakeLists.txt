@@ -56,16 +56,16 @@ endforeach()
 target_link_libraries(sub0fabric_pure PRIVATE simdjson::simdjson version::version)
 target_link_libraries(sub0fabric_io PUBLIC Sub0Platform::sub0platform)
 
-# The budget benchmarks (bench/bench_fabric.cpp) run through Sub0Math's sub0perf tooling (docs/DESIGN.md, "Budgets"): Sub0Fabric_Bench, plus the _json, _runs, _check,
+# The budget benchmarks (bench/bench_fabric.cpp) run through Sub0Perf's tooling (docs/DESIGN.md, "Budgets"): Sub0Fabric_Bench, plus the _json, _runs, _check,
 # _baseline, _compare and _metrics targets. Timing is measured locally only (never in CI); the deterministic metrics (perf/metrics.json) and the smoke run are ctest
-# tests labelled smoke, so they run in every tier. Sub0Math is used for its tooling only (DOWNLOAD_ONLY).
+# tests labelled smoke, so they run in every tier. Sub0Perf is the family's performance tooling, moved out of Sub0Math (ADR 0004); DOWNLOAD_ONLY.
 if(SUB0FABRIC_BUILD_BENCHMARKS)
   if(SUB0FABRIC_BUILD_TESTING)
     enable_testing()   # before the first add_test below (the testing block calls it again, harmlessly)
   endif()
-  CPMAddPackage(NAME Sub0Math
-    GIT_REPOSITORY https://github.com/CraigHutchinson/Sub0Math.git
-    GIT_TAG 27ff54d925dfda14c66a7fb11bfa0d544f89b4ea   # the pin Sub0Canvas uses
+  CPMAddPackage(NAME Sub0Perf
+    GIT_REPOSITORY https://github.com/CraigHutchinson/Sub0Perf.git
+    GIT_TAG 3c74bce22e848d3e4e13dfcb5eb9c480703b7db8
     DOWNLOAD_ONLY YES)
   # No benchmark run after every build (run the targets deliberately). The pre-push gate is on wherever this machine has a committed baseline
   # (perf/baselines/<host>.json, the lower-case host name, or SUB0MATH_PERF_HOST / -DSUB0MATH_PERF_HOST for another name): the gate judges against that
@@ -81,7 +81,7 @@ if(SUB0FABRIC_BUILD_BENCHMARKS)
     string(TOLOWER "${_fabric_perf_host}" _fabric_perf_host)
   endif()
   # The gate is installed only from the main checkout (a linked git worktree has a .git file, not a directory, and shares the main checkout's hooks and
-  # sub0perf configuration: Sub0Math issue 5) and never when SUB0FABRIC_PERF_GATE is OFF.
+  # sub0perf configuration: Sub0Perf issue, transferred from Sub0Math issue 5) and never when SUB0FABRIC_PERF_GATE is OFF.
   option(SUB0FABRIC_PERF_GATE "Install the pre-push performance gate where this machine has a committed baseline" ON)
   if(SUB0FABRIC_PERF_GATE AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.git"
      AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/perf/baselines/${_fabric_perf_host}.json")
@@ -89,7 +89,7 @@ if(SUB0FABRIC_BUILD_BENCHMARKS)
   else()
     set(SUB0MATH_PERF_GIT_HOOKS OFF)
   endif()
-  include("${Sub0Math_SOURCE_DIR}/cmake/Sub0MathTooling.cmake")
+  include("${Sub0Perf_SOURCE_DIR}/cmake/Sub0Perf.cmake")
 
   sub0math_add_benchmark(Sub0Fabric_Bench bench/bench_fabric.cpp METRICS perf/metrics.json SMOKE_TEST)
   target_compile_options(Sub0Fabric_Bench PRIVATE ${SUB0FABRIC_STRICT})
