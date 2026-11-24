@@ -1,0 +1,53 @@
+name: CI full
+
+# Full tier (CraigHutchinson/.github docs/ci-strategy.md): `ctest --preset full`, every test except the label timing (wall-clock runs are local only), on Linux GCC and Clang, and on
+# Windows with MinGW-w64 UCRT (the shared workflow's windows-toolchain: mingw-ucrt), the toolchain the family builds with on Windows. The shared MSVC leg is off: the library is built with
+# GCC-style flags (-Wall -Wextra -Werror). No macOS leg yet (not verified there). Triggers: release tags, manual dispatch, a pull request labelled ci:full, and a weekly run that is skipped
+# when main has not changed since the last successful full run. Honours CI_MODE (off | smoke | full) and ci:skip.
+
+on:
+  push:
+    tags: ['v*', 'milestone/*']
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [labeled, synchronize]
+  schedule:
+    - cron: '41 5 * * 1'
+
+concurrency:
+  group: ci-full-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    # Runs only with a ci:full label on pull requests; the schedule only when main changed; never while CI is off.
+    uses: CraigHutchinson/.github/.github/workflows/change-gate.yml@bc99324d190d98cd336bbebafcc2a98fd69ef9cb
+    with:
+      full-workflow-file: ci-full.yml
+    permissions: { contents: read, actions: read }
+
+  full:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    uses: CraigHutchinson/.github/.github/workflows/cpp-full.yml@bc99324d190d98cd336bbebafcc2a98fd69ef9cb
+    with:
+      cpm-cache-key-files: CMakeLists.txt cmake/dependencies.cmake cmake/get_cpm.cmake
+      windows: true
+      windows-toolchain: mingw-ucrt
+      test-args: --timeout 600
+      macos: false
+      timeout-minutes: 30
+    permissions: { contents: read, statuses: write, actions: read, pull-requests: read, checks: read }
+
+  # Reports ci/policy for pull requests once every job above has finished (no waiting on a billed runner).
+  policy:
+    needs: [full]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    uses: CraigHutchinson/.github/.github/workflows/ci-policy.yml@bc99324d190d98cd336bbebafcc2a98fd69ef9cb
+    with:
+      upstream-result: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'failure' || 'success' }}
+    permissions: { contents: read, statuses: write, checks: read }

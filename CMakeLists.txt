@@ -56,6 +56,57 @@ endforeach()
 target_link_libraries(sub0fabric_pure PRIVATE simdjson::simdjson version::version)
 target_link_libraries(sub0fabric_io PUBLIC Sub0Platform::sub0platform)
 
+# The budget benchmarks (bench/bench_fabric.cpp) run through Sub0Math's sub0perf tooling (docs/DESIGN.md, "Budgets"): Sub0Fabric_Bench, plus the _json, _runs, _check,
+# _baseline, _compare and _metrics targets. Timing is measured locally only (never in CI); the deterministic metrics (perf/metrics.json) and the smoke run are ctest
+# tests labelled smoke, so they run in every tier. Sub0Math is used for its tooling only (DOWNLOAD_ONLY).
+if(SUB0FABRIC_BUILD_BENCHMARKS)
+  if(SUB0FABRIC_BUILD_TESTING)
+    enable_testing()   # before the first add_test below (the testing block calls it again, harmlessly)
+  endif()
+  CPMAddPackage(NAME Sub0Math
+    GIT_REPOSITORY https://github.com/CraigHutchinson/Sub0Math.git
+    GIT_TAG 27ff54d925dfda14c66a7fb11bfa0d544f89b4ea   # the pin Sub0Canvas uses
+    DOWNLOAD_ONLY YES)
+  # No benchmark run after every build (run the targets deliberately). The pre-push gate is on wherever this machine has a committed baseline
+  # (perf/baselines/<host>.json, the lower-case host name, or SUB0MATH_PERF_HOST / -DSUB0MATH_PERF_HOST for another name): the gate judges against that
+  # baseline, so with none there is nothing to gate and the build writes no configuration.
+  set(SUB0MATH_PERF_ON_BUILD "OFF" CACHE STRING "")
+  if(NOT DEFINED SUB0MATH_PERF_HOST AND DEFINED ENV{SUB0MATH_PERF_HOST})
+    set(SUB0MATH_PERF_HOST "$ENV{SUB0MATH_PERF_HOST}" CACHE STRING "Baseline name in perf/baselines/")
+  endif()
+  if(DEFINED SUB0MATH_PERF_HOST)
+    set(_fabric_perf_host "${SUB0MATH_PERF_HOST}")
+  else()
+    cmake_host_system_information(RESULT _fabric_perf_host QUERY HOSTNAME)
+    string(TOLOWER "${_fabric_perf_host}" _fabric_perf_host)
+  endif()
+  # The gate is installed only from the main checkout (a linked git worktree has a .git file, not a directory, and shares the main checkout's hooks and
+  # sub0perf configuration: Sub0Math issue 5) and never when SUB0FABRIC_PERF_GATE is OFF.
+  option(SUB0FABRIC_PERF_GATE "Install the pre-push performance gate where this machine has a committed baseline" ON)
+  if(SUB0FABRIC_PERF_GATE AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.git"
+     AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/perf/baselines/${_fabric_perf_host}.json")
+    set(SUB0MATH_PERF_GIT_HOOKS ON)
+  else()
+    set(SUB0MATH_PERF_GIT_HOOKS OFF)
+  endif()
+  include("${Sub0Math_SOURCE_DIR}/cmake/Sub0MathTooling.cmake")
+
+  sub0math_add_benchmark(Sub0Fabric_Bench bench/bench_fabric.cpp METRICS perf/metrics.json SMOKE_TEST)
+  target_compile_options(Sub0Fabric_Bench PRIVATE ${SUB0FABRIC_STRICT})
+  target_link_libraries(Sub0Fabric_Bench PRIVATE sub0fabric_io)
+  if(MINGW)
+    # The bench replaces operator new to count allocations and live bytes; MinGW's libstdc++ DLL would allocate strings with its own operator new and the
+    # executable free them with ours (heap corruption, 0xC0000374). Linking the runtime statically keeps one allocator.
+    target_link_options(Sub0Fabric_Bench PRIVATE -static-libstdc++ -static-libgcc)
+  endif()
+  # The timing run as a test, for `ctest --preset timing` (local only: label timing, which the quick and full presets exclude): interleaved rounds, then the
+  # judgement against perf/baselines/<host>.json. `_smoke` and `_metrics` (label smoke) are registered by sub0math_add_benchmark.
+  if(SUB0FABRIC_BUILD_TESTING AND TARGET Sub0Fabric_Bench_check)
+    add_test(NAME Sub0Fabric_Bench_timing COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target Sub0Fabric_Bench_check)
+    set_tests_properties(Sub0Fabric_Bench_timing PROPERTIES LABELS timing TIMEOUT 3600 RUN_SERIAL TRUE)
+  endif()
+endif()
+
 if(SUB0FABRIC_BUILD_TESTING)
   enable_testing()
   add_test(NAME layering COMMAND ${CMAKE_COMMAND} -DSRC_DIR=${CMAKE_SOURCE_DIR} -P ${CMAKE_SOURCE_DIR}/cmake/CheckLayers.cmake)
@@ -72,6 +123,7 @@ if(SUB0FABRIC_BUILD_TESTING)
 
   include(cmake/TestTiers.cmake)
   sub0fabric_label_tests(AREA structure TIER smoke TARGETS layering test_reporting)
+  sub0fabric_label_tests(AREA bench TIER smoke TARGETS Sub0Fabric_Bench_smoke Sub0Fabric_Bench_metrics)
   include(cmake/Tests.cmake OPTIONAL)   # the test list, one place: area and tier per test
   sub0fabric_check_labels()
 endif()

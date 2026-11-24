@@ -28,6 +28,7 @@ function(sub0fabric_check_labels)
   string(REPLACE ";" "|" areaRe "${SUB0FABRIC_TEST_AREAS}")
   foreach(test ${allTests})
     get_property(labels TEST ${test} PROPERTY LABELS)
+    list(REMOVE_DUPLICATES labels)   # the benchmark tooling already labels its tests smoke
     if("timing" IN_LIST labels)
       continue()
     endif()

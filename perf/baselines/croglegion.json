@@ -1,0 +1,82 @@
+{
+  "format": 2,
+  "host": "croglegion",
+  "machine": "AMD64",
+  "system": "Windows 11",
+  "note": "Medians per op after calibration scaling, with robust CV across interleaved rounds. Regenerate deliberately; say why in the commit. Regressions are accepted with `accept`.",
+  "power": {
+    "state": "ac",
+    "saver": false,
+    "scheme": "Balanced",
+    "mode": {
+      "ac": "Balanced",
+      "dc": "Balanced"
+    }
+  },
+  "calibration_ns": 4702.304,
+  "calibration_sustained_ns": 4744.85,
+  "epochs": 0,
+  "cpu": 23,
+  "benchmarks": {
+    "append batch of 1000 to disk, one flush (frames)": {
+      "median_ns": 2024487.364,
+      "cv": 0.0088,
+      "rounds": 5
+    },
+    "append encode, frames, one record (memory)": {
+      "median_ns": 315.88,
+      "cv": 0.0119,
+      "rounds": 5
+    },
+    "append one record to disk, flushed per record": {
+      "median_ns": 2054333.408,
+      "cv": 0.0164,
+      "rounds": 5,
+      "modes": [
+        1960132.562,
+        2063641.318
+      ]
+    },
+    "crc32c of 4 KiB (slice-by-8)": {
+      "median_ns": 1231.925,
+      "cv": 0.0046,
+      "rounds": 5
+    },
+    "decode canvas-event-1 line (simdjson on-demand)": {
+      "median_ns": 143.463,
+      "cv": 0.0116,
+      "rounds": 5
+    },
+    "decode journal-1 line (simdjson on-demand)": {
+      "median_ns": 95.112,
+      "cv": 0.0377,
+      "rounds": 5
+    },
+    "merge 16 writers x 6250 records from disk (streaming, lamport)": {
+      "median_ns": 45909333.021,
+      "cv": 0.0163,
+      "rounds": 5,
+      "modes": [
+        45745957.479,
+        46990880.417
+      ]
+    },
+    "reader open and scan, 1e5 records (frames, checksums only)": {
+      "median_ns": 12986388.8,
+      "cv": 0.0168,
+      "rounds": 5
+    },
+    "since(cursor): tail of 100 from a log of 1e4 (warm reader)": {
+      "median_ns": 94917.47,
+      "cv": 0.0065,
+      "rounds": 5
+    },
+    "since(cursor): tail of 100 from a log of 1e5 (warm reader)": {
+      "median_ns": 105550.859,
+      "cv": 0.031,
+      "rounds": 5
+    }
+  },
+  "pairs": {},
+  "accepted": []
+}

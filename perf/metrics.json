@@ -1,0 +1,160 @@
+{
+  "schema": "sub0perf-metrics-spec-1",
+  "metrics": {
+    "append encode 1e3: allocations per record": {
+      "kind": "max",
+      "limit": 1.06,
+      "unit": "n"
+    },
+    "append encode 1e5: allocations per record": {
+      "kind": "max",
+      "limit": 1.06,
+      "unit": "n"
+    },
+    "append frame bytes, one issues-layer item.put": {
+      "kind": "exact",
+      "expected": 230,
+      "unit": "B"
+    },
+    "append line bytes, the same record as journal-1": {
+      "kind": "exact",
+      "expected": 114,
+      "unit": "B"
+    },
+    "append batch 1e5 to disk: records": {
+      "kind": "exact",
+      "expected": 100000,
+      "unit": "n"
+    },
+    "append batch 1e5 to disk: segments": {
+      "kind": "exact",
+      "expected": 1,
+      "unit": "n"
+    },
+    "append batch 1e5 to disk: allocations per record, record construction included": {
+      "kind": "max",
+      "limit": 5.26,
+      "unit": "n"
+    },
+    "reader open 1e5: records scanned": {
+      "kind": "exact",
+      "expected": 100000,
+      "unit": "n"
+    },
+    "reader open 1e5: allocations, sparse index and segment table": {
+      "kind": "max",
+      "limit": 400,
+      "unit": "n"
+    },
+    "since tail 100 of 1e4: records returned": {
+      "kind": "exact",
+      "expected": 100,
+      "unit": "n"
+    },
+    "since tail 100 of 1e4: records skipped after the index seek": {
+      "kind": "max",
+      "limit": 63,
+      "unit": "n"
+    },
+    "since tail 100 of 1e4: bytes read": {
+      "kind": "max",
+      "limit": 73728,
+      "unit": "B"
+    },
+    "since tail 100 of 1e4: records rescanned": {
+      "kind": "exact",
+      "expected": 0,
+      "unit": "n"
+    },
+    "since tail 100 of 1e4: allocations": {
+      "kind": "max",
+      "limit": 150,
+      "unit": "n"
+    },
+    "since tail 100 of 1e5: records returned": {
+      "kind": "exact",
+      "expected": 100,
+      "unit": "n"
+    },
+    "since tail 100 of 1e5: records skipped after the index seek": {
+      "kind": "max",
+      "limit": 63,
+      "unit": "n"
+    },
+    "since tail 100 of 1e5: bytes read": {
+      "kind": "max",
+      "limit": 73728,
+      "unit": "B"
+    },
+    "since tail 100 of 1e5: records rescanned": {
+      "kind": "exact",
+      "expected": 0,
+      "unit": "n"
+    },
+    "since tail 100 of 1e5: allocations": {
+      "kind": "max",
+      "limit": 150,
+      "unit": "n"
+    },
+    "since from the start of 1e5: records returned": {
+      "kind": "exact",
+      "expected": 100000,
+      "unit": "n"
+    },
+    "since from the start of 1e5: records skipped": {
+      "kind": "exact",
+      "expected": 0,
+      "unit": "n"
+    },
+    "merge 16 streams 1e4: records out": {
+      "kind": "exact",
+      "expected": 10000,
+      "unit": "n"
+    },
+    "merge 16 streams 1e5: records out": {
+      "kind": "exact",
+      "expected": 100000,
+      "unit": "n"
+    },
+    "merge 16 streams 1e5: records out of order": {
+      "kind": "exact",
+      "expected": 0,
+      "unit": "n"
+    },
+    "merge 16 streams 1e4: peak live heap bytes": {
+      "kind": "max",
+      "limit": 3648543,
+      "unit": "B"
+    },
+    "merge 16 streams 1e5: peak live heap bytes": {
+      "kind": "max",
+      "limit": 3648543,
+      "unit": "B"
+    },
+    "merge 16 streams: peak at 1e5 per peak at 1e4, in thousandths": {
+      "kind": "max",
+      "limit": 1100,
+      "unit": "n"
+    },
+    "decode canvas-event-1: allocations per record, record reused": {
+      "kind": "max",
+      "limit": 0,
+      "unit": "n"
+    },
+    "decode journal-1: allocations per record, record reused": {
+      "kind": "max",
+      "limit": 0,
+      "unit": "n"
+    },
+    "decode canvas-event-1: line bytes": {
+      "kind": "exact",
+      "expected": 236,
+      "unit": "B"
+    },
+    "crc32c of a 1000-byte pattern": {
+      "kind": "exact",
+      "expected": 4283625111,
+      "unit": "n"
+    }
+  }
+}

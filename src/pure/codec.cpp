@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <format>
+#include <optional>
 #include <vector>
 
 namespace sub0fabric {
@@ -99,8 +100,7 @@ public:
         out.payload.clear();
         out.extra.clear();
         bool haveKind = false, haveWriter = false, haveLamport = false;
-        json::Writer extra;   // collects unknown members as an object, whose braces are stripped below
-        extra.beginObject();
+        std::optional<json::Writer> extra;   // collects unknown members as an object, whose braces are stripped below; made only when there are some
         bool anyExtra = false;
         try {
             json::ParseSession session;
@@ -124,7 +124,11 @@ public:
                     }
                     haveWriter = true;
                 }
-                else { const std::string k{key}; extra.key(k).raw(json::trimRaw(value.raw_json())); anyExtra = true; }
+                else {
+                    if (!extra) extra.emplace().beginObject();
+                    extra->key(key).raw(json::trimRaw(value.raw_json()));
+                    anyExtra = true;
+                }
             }
         } catch (const simdjson::simdjson_error& e) {
             return std::unexpected(std::format("not a canvas-event-1 record: {}", e.what()));
@@ -134,8 +138,8 @@ public:
         if (!haveLamport) return std::unexpected("canvas-event-1 record has no lamport");
         if (out.payload.empty()) out.payload = "{}";
         if (anyExtra) {
-            extra.endObject();
-            const std::string_view whole = extra.view();
+            extra->endObject();
+            const std::string_view whole = extra->view();
             out.extra.assign(whole.substr(1, whole.size() - 2));
         }
         return {};

@@ -4,6 +4,7 @@
 // The writer and the pool follow Sub0Canvas's lib/src/json_util.hpp (Fabric depends on no other Sub0 project, so the idiom is repeated here, not shared).
 #include <simdjson.h>
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -18,8 +19,8 @@ class Writer
 {
 public:
     Writer() : buffer_(256) {}
-    Writer& beginObject() { sep(); buffer_.append('{'); first_.push_back(true); return *this; }
-    Writer& endObject() { buffer_.append('}'); first_.pop_back(); return *this; }
+    Writer& beginObject() { sep(); buffer_.append('{'); first_[depth_++] = true; return *this; }
+    Writer& endObject() { buffer_.append('}'); --depth_; return *this; }
     Writer& key(std::string_view k) { sep(); buffer_.escape_and_append_with_quotes(k); buffer_.append(':'); pendingKey_ = true; return *this; }
     Writer& str(std::string_view v) { sep(); buffer_.escape_and_append_with_quotes(v); return *this; }
     Writer& num(std::int64_t v) { sep(); buffer_.append(v); return *this; }
@@ -36,11 +37,12 @@ private:
     void sep()
     {
         if (pendingKey_) { pendingKey_ = false; return; }
-        if (first_.empty()) return;
-        if (first_.back()) first_.back() = false; else buffer_.append(',');
+        if (depth_ == 0) return;
+        if (first_[depth_ - 1]) first_[depth_ - 1] = false; else buffer_.append(',');
     }
     simdjson::builder::string_builder buffer_;
-    std::vector<bool> first_;
+    std::array<bool, 8> first_{};   ///< per open object: no member written yet (objects nest at most 2 deep here)
+    std::size_t depth_ = 0;
     bool pendingKey_ = false;
 };
 

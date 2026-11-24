@@ -57,7 +57,7 @@ class StreamSource final : public RecordSource
 {
 public:
     StreamSource(std::vector<Plan> plans, Framing framing, const RecordCodec& codec, WriterId writer, std::size_t chunk, std::shared_ptr<ReadStats> stats)
-        : plans_(std::move(plans)), framing_(framing), codec_(&codec), writer_(std::move(writer)), scanner_(framing, codec, 0, 0), chunk_(chunk, '\0'), stats_(std::move(stats))
+        : plans_(std::move(plans)), codec_(&codec), writer_(std::move(writer)), scanner_(framing, codec, 0, 0), chunk_(chunk, '\0'), stats_(std::move(stats))
     {
     }
 
@@ -111,7 +111,6 @@ public:
 
 private:
     std::vector<Plan> plans_;
-    Framing framing_;
     const RecordCodec* codec_;
     WriterId writer_;
     SegmentScanner scanner_;

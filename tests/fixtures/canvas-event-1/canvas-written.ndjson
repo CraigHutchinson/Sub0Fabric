@@ -1,0 +1,3 @@
+{"kind":"item.put@1","writer":{"namespace":"proj","writer":"w-000001"},"lamport":1,"subject":"squad/issues/test/modulo","time":"2026-11-24T10:00:00Z","payload":{"layer":"issues","title":"q\"uote","anchors":[{"blockId":"b1","line":12}]}}
+{"kind":"item.state@1","writer":{"namespace":"proj","writer":"w-000002"},"lamport":2,"subject":"squad/issues/test/modulo","time":"2026-11-24T10:00:01Z","payload":{"to":"held","actor":"squad/worker/app#2","reason":"claim"}}
+{"kind":"future.kind@7","writer":{"namespace":"","writer":"w"},"lamport":40,"subject":"","time":"","payload":{"n":1.5e-3,"big":12345678901234,"u":"é"},"future":{"a":[true,null]},"n":5}

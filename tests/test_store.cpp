@@ -232,8 +232,9 @@ int main()
         auto rd = StoreReader::open(base, ro);
         CHECK(rd.has_value());
         if (rd) {
-            CHECK_EQ(rd->streams()[0].records, 200u);
-            CHECK_EQ(rd->streams()[0].segments, segs);
+            const auto info = rd->streams();
+            CHECK_EQ(info[0].records, 200u);
+            CHECK_EQ(info[0].segments, segs);
             for (std::uint64_t from : {0u, 1u, 7u, 8u, 9u, 63u, 64u, 100u, 150u, 199u, 200u, 250u}) {
                 Cursor c;
                 c.set({"p", "w"}, from);

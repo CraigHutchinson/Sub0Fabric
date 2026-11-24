@@ -4,6 +4,8 @@
 #include "sub0fabric/pure/codec.hpp"
 #include "sub0platform/testing/check.hpp"
 
+#include <fstream>
+
 using namespace sub0fabric;
 
 int main()
@@ -92,6 +94,25 @@ int main()
                 for (std::string_view g : c->fields()) listed = listed || g == f;
                 CHECK(listed);
             }
+    }
+
+    // A file Sub0Canvas's own eventJson wrote (tests/fixtures/canvas-event-1): each line is detected, read, and written back to the same bytes.
+    {
+        std::ifstream in(std::string{SUB0FABRIC_FIXTURE_DIR} + "/canvas-event-1/canvas-written.ndjson", std::ios::binary);
+        std::string line;
+        int n = 0;
+        while (std::getline(in, line)) {
+            ++n;
+            auto shape = detectShape(line);
+            CHECK(shape.has_value() && *shape == "canvas-event-1");
+            Record r;
+            CHECK(canvas->decode(line, r).has_value());
+            std::string again;
+            canvas->encode(r, again);
+            CHECK_EQ(again, line);
+            if (n == 3) { CHECK_EQ(r.kind, std::string{"future.kind@7"}); CHECK_EQ(r.lamport, 40u); CHECK(!r.extra.empty()); }
+        }
+        CHECK_EQ(n, 3);
     }
 
     CHECK(splitKind("item.put@1").name == "item.put");
