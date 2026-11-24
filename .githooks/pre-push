@@ -95,13 +95,15 @@ fi
 tail -n 3 "$log"
 
 # --- The local performance gate (CraigHutchinson/.github templates/pre-push; docs/ci-strategy.md, "Performance across tiers") ---------------------
-# Timing is local only. The configure step records the tooling directory in $builddir/sub0math_tooling_dir.txt. The gate reads the pushed refs on stdin
+# Timing is local only. The configure step records the tooling directory in $builddir/sub0perf_tooling_dir.txt. The gate reads the pushed refs on stdin
 # (here from "$refs"), prints one brief line (SUB0PERF_OUTPUT=brief; the details are in the report path it names) and decides itself what to skip. A
 # deferral (battery, battery saver, throttled machine) exits 0 and STANDS: never turn the gate's message into a failure, and never set
-# SUB0MATH_PERF_ON_BATTERY here. The gate measures what `cmake -DSUB0MATH_PERF_GIT_HOOKS=ON` configured (.git/sub0perf/config.json); without that it
+# SUB0PERF_ON_BATTERY here. The gate measures what `cmake -DSUB0PERF_GIT_HOOKS=ON` configured (.git/sub0perf/config.json); without that it
 # says "no benchmarks configured" and passes.
-if [ -f "$builddir/sub0math_tooling_dir.txt" ]; then
-    tooling="$(cat "$builddir/sub0math_tooling_dir.txt")"
+record="$builddir/sub0perf_tooling_dir.txt"
+[ -f "$record" ] || record="$builddir/sub0math_tooling_dir.txt"  # a build directory configured before the rename
+if [ -f "$record" ]; then
+    tooling="$(cat "$record")"
     py=python
     command -v python >/dev/null 2>&1 || py=python3
     if ! SUB0PERF_OUTPUT=brief "$py" "$tooling/bench_check.py" gate --refs-from-stdin <<<"$refs"; then
@@ -109,7 +111,7 @@ if [ -f "$builddir/sub0math_tooling_dir.txt" ]; then
         exit 1
     fi
 else
-    echo "pre-push: WARNING: $builddir/sub0math_tooling_dir.txt not found; the performance gate did not run" >&2
+    echo "pre-push: WARNING: $builddir/sub0perf_tooling_dir.txt not found (configure the build); the performance gate did not run" >&2
 fi
 
 echo "pre-push: all checks passed."
