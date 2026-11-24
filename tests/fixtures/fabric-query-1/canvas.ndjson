@@ -1,0 +1,8 @@
+{"kind":"item.put@1","writer":{"namespace":"proj","writer":"w-a"},"lamport":1,"subject":"item-1","time":"2026-11-24T10:00:01Z","payload":{"title":"alpha","n":1}}
+{"kind":"item.state@1","writer":{"namespace":"proj","writer":"w-a"},"lamport":3,"subject":"item-1","time":"2026-11-24T10:00:03Z","payload":{"state":"done"}}
+{"kind":"item.put@1","writer":{"namespace":"proj","writer":"w-a"},"lamport":4,"subject":"item-2","time":"2026-11-24T10:00:04Z","payload":{"title":"café","alt":"caf\u00e9","tags":["x","y"]}}
+{"kind":"item.put@2","writer":{"namespace":"proj","writer":"w-a"},"lamport":8,"subject":"item-6","time":"2026-11-24T10:00:08Z","payload":{"title":"zeta"},"future":{"hint":[1,2]}}
+{"kind":"item.put@1","writer":{"namespace":"proj","writer":"w-b"},"lamport":2,"subject":"item-3","time":"2026-11-24T10:00:02Z","payload":{"title":"beta"}}
+{"kind":"item.put@1","writer":{"namespace":"proj","writer":"w-b"},"lamport":3,"subject":"item-4","time":"2026-11-24T10:00:03Z","payload":{"n":1e3}}
+{"kind":"item.state@1","writer":{"namespace":"proj","writer":"w-b"},"lamport":5,"subject":"item-3","time":"2026-11-24T10:00:05Z","payload":{"state":"open"}}
+{"kind":"item.put@1","writer":{"namespace":"proj","writer":"w-b"},"lamport":6,"subject":"item-5","time":"2026-11-24T10:00:06Z","payload":{"title":"gamma"}}

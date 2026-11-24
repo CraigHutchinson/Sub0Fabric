@@ -1,5 +1,6 @@
 // The query protocol `fabric-query-1` (pure/protocol.hpp) over the in-memory query source (pure/query_source.hpp), one block per contract property of
 // docs/DESIGN.md "Protocol (W3a)". The same cases run over the directory store in test_protocol_store.
+#include "golden.hpp"
 #include "helpers.hpp"
 #include "sub0fabric/pure/lines.hpp"
 #include "sub0fabric/pure/protocol.hpp"
@@ -8,7 +9,10 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
+#include <fstream>
 #include <format>
+#include <map>
 
 using namespace sub0fabric;
 using namespace fabrictest;
@@ -708,10 +712,61 @@ void determinism()
     CHECK_EQ(stats.responseBytes, r1.size() + r2.size() + r3.size());
 }
 
+/// The response of one golden case over the in-memory source.
+std::string answerGolden(const golden::Case& c)
+{
+    const MemoryQuerySource src = golden::memorySource(c.source);
+    ProtocolServer server(src, golden::policyOf(c));
+    return ask(server, c.request);
+}
+
+/// The golden cases (tests/fixtures/fabric-query-1/cases.txt): every op and every error code, answered byte for byte. With `update`, the `<<<` lines are
+/// rewritten from what the server answers now, to be read by hand and committed.
+void goldenCases(bool update)
+{
+    const std::string path = golden::fixtureDir() + "cases.txt";
+    const std::string text = golden::readFile(path);
+    const std::vector<golden::Case> cases = golden::loadCases(text);
+    CHECK_GE(cases.size(), 20u);
+    if (update) {
+        std::vector<std::string> lines = golden::linesOf(text), out;
+        std::size_t next = 0;
+        for (std::size_t i = 0; i < lines.size(); ++i) {
+            if (lines[i].starts_with("<<<")) continue;   // replaced below
+            out.push_back(lines[i]);
+            if (lines[i].starts_with(">>> ")) out.push_back("<<< " + answerGolden(cases[next++]));
+        }
+        std::ofstream file(path, std::ios::binary | std::ios::trunc);
+        for (const std::string& l : out) file << l << '\n';
+        std::fprintf(stderr, "updated %zu cases in %s\n", next, path.c_str());
+        return;
+    }
+    std::map<std::string, int> codes;
+    for (const golden::Case& c : cases) {
+        const std::string got = answerGolden(c);
+        if (got != c.expected) std::fprintf(stderr, "cases.txt:%zu: %s\n  expected %s\n  got      %s\n", c.line, c.request.c_str(), c.expected.c_str(), got.c_str());
+        CHECK_EQ(got, c.expected);
+        CHECK(!c.expected.empty());
+        // The suite must exercise every code a response can carry that a read-only source can reach (store-error has its own tests).
+        const std::size_t at = got.find(R"("code":")");
+        if (at != std::string::npos) ++codes[got.substr(at + 8, got.find('"', at + 8) - at - 8)];
+    }
+    for (const char* code : {"bad-request", "unsupported-schema", "unknown-op", "unknown-field", "bad-cursor", "too-large", "mixed-order"}) CHECK(codes[code] >= 1);
+    // The fixtures are what the cases say they are.
+    CHECK_EQ(golden::loadStreams("canvas").size(), 2u);
+    CHECK_EQ(golden::loadStreams("canvas")[0].records.size(), 4u);
+    CHECK_EQ(golden::loadStreams("journal")[0].records.size(), 3u);
+    CHECK_EQ(golden::loadStreams("both").size(), 3u);
+}
+
 }  // namespace
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc > 1 && std::strcmp(argv[1], "--update") == 0) {
+        goldenCases(true);
+        return finish();
+    }
     sourceSeam();
     orderResolution();
     envelopeErrors();
@@ -727,5 +782,6 @@ int main()
     entriesVerbatim();
     serveLinesBlock();
     determinism();
+    goldenCases(false);
     return finish();
 }
