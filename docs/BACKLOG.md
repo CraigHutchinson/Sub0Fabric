@@ -4,7 +4,8 @@ What is next, in order. The wave numbers are those of the architecture review (S
 
 | # | item | wave | note |
 |---|---|---|---|
-| 1 | Protocol and projection: the versioned query/event protocol and the field-allowlisted projection format, golden contract tests over an in-process transport | W3 | needs F0's `Record`, `Cursor`, `StoreReader::since`, `RecordCodec` registry (see RESUME.md, "What W3 and W4 need") |
+| 1a | Protocol: the versioned query protocol `fabric-query-1` (`info`, `streams`, `since`), the query-source seam over memory and the directory store, JSON-lines framing, golden contract suite | W3a | **done** (see RESUME.md, DESIGN.md "Protocol (W3a)") |
+| 1b | Projection: `projection-1`, a field-allowlist `Projection` handler wrapping `ProtocolServer`. Writer ids become opaque, FNV-1a 64 of salt + namespace + `/` + writer; the projected `payload` (built from the allowlist) replaces `record`; `streams` lists only allowed writers; projected cursors carry the opaque ids. Reads `RequestContext` (capabilities) for who may see what; golden cases in the same harness (`tests/golden.hpp`) | W3b | **next**: needs `RequestHandler`, `QuerySource`, the golden harness (all in W3a) |
 | 2 | Transports: stdio JSON lines and native HTTP+SSE (the `http` module, review D10), K0 budgets | W4 | needs the in-memory live ring and `StoreReader::refresh` (below) |
 | 3 | The read-only Sub0Log codec adapter (review D3): a Sub0Log segment read through the record seam, order policy `aligned-time` | W2 remainder | not in F0: the adapter is the third codec; the seam (`RecordCodec`, `OrderPolicy` registry) is ready |
 | 4 | Sidecar sparse index, a disposable per-user cache keyed by segment id (review A19), so a cold `since(cursor)` does not scan the segment | F1 | F0 builds the index in memory on first open and extends it as the segment grows |

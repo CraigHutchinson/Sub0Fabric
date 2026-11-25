@@ -1,6 +1,6 @@
 # Design
 
-Status: F0, the log core (W2 of the architecture review). The decisions D1-D11 and the section 5 budgets are the review's, in Sub0Canvas
+Status: F0, the log core (W2 of the architecture review), and the query protocol (W3a, "Protocol (W3a)" below). The decisions D1-D11 and the section 5 budgets are the review's, in Sub0Canvas
 `docs/reviews/2026-11-23-fabric-portal-store.md`; this document says what F0 built from them, the byte formats, and where it differs. It does not copy the review.
 
 ## Scope of F0
@@ -8,7 +8,7 @@ Status: F0, the log core (W2 of the architecture review). The decisions D1-D11 a
 | review | F0 |
 |---|---|
 | D1 lift Squad's journal behaviour-preserving; Canvas's events the second user | done: `journal-1` and `canvas-event-1` are the two proved record shapes; Squad's journal tests are ported (`test_journal1`) |
-| D2 modules `segment`, `record`, `order`, `cursor`, `store` | done as pure headers `segment`, `record`/`codec`, `order`, `cursor`, `index`, `layout`, and the io directory store; `transport` and `projection` are W3/W4 |
+| D2 modules `segment`, `record`, `order`, `cursor`, `store` | done as pure headers `segment`, `record`/`codec`, `order`, `cursor`, `index`, `layout`, and the io directory store; `transport` is W4, `projection` is W3b; the protocol is W3a ("Protocol (W3a)") |
 | D4 order is data | done: the order policy is a field of the segment header and a name resolved by `findOrderPolicy` (`seq`, `lamport`); `aligned-time` waits for the Sub0Log adapter |
 | D5 physical per writer, logical per project | done: a writer owns its segment directory; "per project" is the reader's merge across writers; `Layout::shared` is the single-stream option |
 | D6 composite writer id | done: `WriterId{ns, writer}` is in the record, the cursor, the header and the path |
@@ -132,6 +132,79 @@ has handled records, so a crash repeats work and never loses it.
    rules for the lines framing, so they hold for any shape written as lines.
 4. **Not preserved, deliberately**: `d` is kept without trailing whitespace; the facade keeps every record in memory, as Squad's does (the reader is the streaming way);
    a lines record whose text holds a newline is refused instead of silently splitting (Squad never had such a body: its bodies are compact JSON).
+
+## Protocol (W3a)
+
+`fabric-query-1` is the one query protocol every transport serves (review D7: protocol first, independent of transport). It is **pure** (`pure/protocol.hpp`): a
+JSON request text in, a JSON response text out, over a `QuerySource`; no transport, no I/O, no clock. This section is the single home of the schema.
+
+```
+RequestHandler     handle(request, RequestContext) -> response          pure/handler.hpp   the seam every transport calls
+  ProtocolServer   info | streams | since                               pure/protocol.hpp  the fabric-query-1 handler (W3b adds a projecting one)
+QuerySource        streams() ; since(cursor, order) -> RecordSource     pure/query_source.hpp
+  MemoryQuerySource                                                     pure/query_source.hpp   reference, tests
+  StoreQuerySource                                                      io/store_query_source.hpp   over StoreReader
+serveLines(handler, input, context)                                     pure/lines.hpp     JSON lines: one response line per request line
+```
+
+**Request**: one JSON object. `op` is required; `schema` (if present) must be `"fabric-query-1"`; `id` (a string or a whole number) is echoed as the raw token it came as
+(a `uint64` id survives byte for byte); anything else as `id` is `bad-request`. The caller's identity is not a request member: the transport passes a `RequestContext`
+(`actor`, `capabilities`) to the handler (W3a answers every caller alike; W3b's projecting handler is what reads it).
+
+**Success**: `{"schema":"fabric-query-1","ok":true,"op":..,"id":..,"at":{"streams":N,"records":M},...payload...,"unknownFields":[..]}`. `at` is the position the answer was
+computed at (streams and records the source held), so a client sees whether anything moved between answers. `id` appears only when the request had one; `unknownFields` only in
+`echo` mode when there is something to list.
+
+**Error**: `{"schema":"fabric-query-1","ok":false[,"op":..][,"id":..],"error":{"code":..,"field":..,"message":..}}`; `op` and `id` are echoed when they were well formed in the
+request, `field` is the request member at fault (empty for the request as a whole). Codes: `bad-request`, `unsupported-schema`, `unknown-op`, `unknown-field` (policy
+`reject`), `bad-cursor`, `too-large` (request over `maxRequestBytes`, checked before the parse), `mixed-order` (streams of different order policies and no `order` named),
+`store-error` (a damaged or unreadable stream; the message names the file). The checks run in a fixed order whatever order the members came in: size, JSON, `id`, `schema`,
+`op`, the op's own members, unknown members, then the work.
+
+| op | request members | payload |
+|---|---|---|
+| `info` | | `ops`, `policy` (as `parseProtocolPolicy` reads it), `shapes` (from `codecs()`), `orders` (from `orderPolicies()`) |
+| `streams` | `limit`, `cursor` | `entries` each `{"namespace","writer","shape","order","records"[,"damage"]}` ordered by writer; `next`: the last writer sent as `{"namespace","writer"}`, a place and not an offset, `null` on the last page |
+| `since` | `cursor`, `limit`, `order` | `entries` each `{"writer":{"namespace","writer"},"seq":N,"shape":S,"record":<the codec's encode bytes, verbatim>}`; `next` always a `cursor-1` object (the request's cursor advanced past every returned record, or unchanged when nothing is new, so a caught-up client keeps it and asks again); `more` (found by pulling one record beyond the page) |
+
+`limit` is a positive whole number; absent it is the policy default, above the policy maximum it is clamped and the response carries `"clamped":true`. `cursor` for `since` is the
+raw `cursor-1` object (absent or `null`: from the start). `order` names an order policy that overrides the streams' own (`seq`, `lamport`); an unknown name is `bad-request`
+field `order`. A member an op does not take is an unknown member, even when another op takes it.
+
+**Bounds**: a page is at most `limit` entries, and stops adding entries once its entries reach `maxResponseBytes` (the first entry is always added, so one entry over the cap goes
+out alone; the bound is the cap plus the last entry plus the small envelope). A damaged stream does not hide what precedes the damage: the page that reaches it returns the records
+before it with `more:true`, and the next request, which starts at the damage, is the `store-error`.
+
+**Unknown members** (`unknownFields` in the policy): `ignore` (answered as if absent, byte for byte), `echo` (the default: answered, and the names listed in request order, at most
+16, each clipped to 64 characters), `reject` (`unknown-field` naming the first). Echo is the forward-compatible default: a newer client sees what an older server dropped.
+
+**The policy is data**: `ProtocolPolicy` (`streams` and `since` page sizes `{default,max}`, `maxResponseBytes`, `maxRequestBytes`, `unknownFields`), read from JSON by
+`parseProtocolPolicy` (every member optional; an unknown member, a zero size or a default above its maximum is an error naming the member) and reported by `info`.
+
+### Contract (fabric-query-1)
+
+| # | property | held by |
+|---|---|---|
+| P-1 | every failure is a structured error (never an exception, never an empty reply), with the exact bytes of each code | `test_protocol` `envelopeErrors`, `idEcho`, `unknownFields`, `policyRoundtrip`; golden cases; `test_protocol_store` damage |
+| P-2 | `since` pages give every record exactly once, per writer, in policy order, including a late writer's lower-lamport record | `test_protocol` `sinceExactlyOnce` (limits 1..n against one full `Merger` drain), `sinceLateWriter`, `sinceOrder`; `test_protocol_store` append then refresh |
+| P-3 | a response is bounded by `limit` and by `maxResponseBytes` plus one entry | `test_protocol` `sinceBounds`, `streamsPaging` (clamping); golden `maxResponseBytes` case |
+| P-4 | records come out in wire form verbatim: the codec's encode bytes, Canvas's unknown members and the payload untouched, a journal-1 entry carrying its stream's writer | `test_protocol` `entriesVerbatim`; golden `canvas` and `journal` cases |
+| P-5 | the same input gives the same bytes on every source and compiler | `test_protocol` `determinism` and the golden cases; `test_protocol_store` golden cases byte for byte over files (the expected bytes are fixed in `cases.txt`, so every compiler in the CI matrix is held to them) |
+| P-6 | cursors are places: a `streams` cursor is the last writer sent, a `since` cursor is per-writer positions, so a page never repeats or skips what changed between requests | `test_protocol` `streamsPaging`, `sinceLateWriter`, `sinceExactlyOnce` |
+| P-7 | identity reaches the handler through `RequestContext`, never from the request: a request member naming an actor is an unknown member and changes nothing | `test_protocol` `unknownFields` (the `actor` block), the `RequestHandler` signature |
+
+Determinism rules the code keeps (so P-5 holds on gcc, clang and MSVC): simdjson on-demand reads members in document order; ordered containers only (`std::map`, never a hash
+order); no clock, no random; and the source pull and the cursor advance are separate statements, never two side effects in one argument list or operator chain (gcc evaluates
+right to left, clang left to right).
+
+### The judgement call: a shared contract, not shared code
+
+Sub0Canvas's `query-1` (its `docs/QUERY.md` sections 1, 3 and 6) defined the envelope first: `schema`, `ok`, `op`, `id`, `error{code,field,message}`, `limit`/`clamped`, `next`,
+`maxResponseBytes` with the first entry always added, and the three `unknownFields` modes. Fabric cannot link Canvas (Canvas depends on Fabric, never the reverse, and
+Fabric depends on no other Sub0 project), and a query over a document differs from a query over a log. So Fabric **takes over the contract** under its own schema name,
+`fabric-query-1`, and writes its own implementation; a client that speaks one envelope speaks the other, and a divergence is a deliberate edit of a documented table, not drift in
+two copies of code. The cost is two small parsers that must stay alike, which the golden cases here and Canvas's tests each hold on their side. The same reasoning put
+`json::Writer` here as a repeated idiom (see "Record and shapes").
 
 ## Budgets (review section 5) and how F0 measures them
 
