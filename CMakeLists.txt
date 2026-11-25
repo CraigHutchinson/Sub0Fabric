@@ -65,7 +65,7 @@ if(SUB0FABRIC_BUILD_BENCHMARKS)
   endif()
   CPMAddPackage(NAME Sub0Perf
     GIT_REPOSITORY https://github.com/CraigHutchinson/Sub0Perf.git
-    GIT_TAG 3518ede774aacd0b42e8669bbddb222e2b9d319b
+    GIT_TAG 2dc88d4fbddc9f421bbe9189b12d72cdee7df7b7
     DOWNLOAD_ONLY YES)
   # No benchmark run after every build (run the targets deliberately). The pre-push gate follows Sub0Perf's default (SUB0PERF_GIT_HOOKS=AUTO): installed
   # only from the main checkout, where this machine has a committed baseline (perf/baselines/<host>.json; SUB0PERF_HOST names another host), never on CI.
