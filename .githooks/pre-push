@@ -101,7 +101,6 @@ tail -n 3 "$log"
 # SUB0PERF_ON_BATTERY here. The gate measures what `cmake -DSUB0PERF_GIT_HOOKS=ON` configured (.git/sub0perf/config.json); without that it
 # says "no benchmarks configured" and passes.
 record="$builddir/sub0perf_tooling_dir.txt"
-[ -f "$record" ] || record="$builddir/sub0math_tooling_dir.txt"  # a build directory configured before the rename
 if [ -f "$record" ]; then
     tooling="$(cat "$record")"
     py=python
